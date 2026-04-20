@@ -71,20 +71,19 @@ jobs:
     environment: production
     needs: build-and-push
     steps:
-      - name: Setup SSH for Server
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
       - name: Setup SSH for GitHub
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.GITHUBSSH_KEY }}" > ~/.ssh/github_deploy_key
           chmod 600 ~/.ssh/github_deploy_key
-          ssh-add ~/.ssh/github_deploy_key
           ssh-keyscan github.com >> ~/.ssh/known_hosts
+      - name: Setup SSH for Server
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
       - name: Deploy application via SSH
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} <<'EOF'
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/github_deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} <<'EOF'
             set -e  # Exit on error
 
             if [ ! -d /root/workspace/seo-bot ]; then
