@@ -18,7 +18,7 @@ services:
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
-      - worktraq-site:/data/site
+      - seo-bot_worktraq-site:/data/site
     cap_add:
       - ALL
     restart: always
@@ -38,7 +38,8 @@ services:
     restart: always
 
 volumes:
-  worktraq-site:
+  seo-bot_worktraq-site:
+    external: true
   postgres-data:
 networks:
   worktraq:
