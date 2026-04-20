@@ -37,18 +37,6 @@ services:
       - postgres-data:/var/lib/postgresql/data
     restart: always
 
-  prerender-ui:
-    image: 339713009221.dkr.ecr.ca-central-1.amazonaws.com/prerender-ui:latest
-    ports:
-      - 6996:4000
-    expose:
-      - 4000
-    environment:
-      API_BASE_URL: http://seo-bot:8830
-    networks:
-      - worktraq
-    restart: always
-
 volumes:
   worktraq-site:
   postgres-data:

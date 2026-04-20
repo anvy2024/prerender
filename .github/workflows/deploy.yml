@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: prerender
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    environment: production
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        id: build
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          IMAGE_URI=${ECR_REGISTRY}/${IMAGE_NAME}
+
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+          echo "Building API image......"
+          docker build \
+            -t $IMAGE_URI:sha-$SHORT_SHA \
+            -f Dockerfile \
+            .
+
+      - name: Push SHA image
+        run: |
+          docker push $IMAGE_URI:sha-$SHORT_SHA
+
+      # ---------- STAGING ----------
+      - name: Tag & push staging image
+        if: github.ref_name == 'main'
+        run: |
+          docker tag $IMAGE_URI:sha-$SHORT_SHA $IMAGE_URI:latest
+          docker push $IMAGE_URI:latest
+
+      - name: Notify if failure
+        uses: up9cloud/action-notify@master
+        if: ${{ failure() }}
+        env:
+          GITHUB_JOB_STATUS: 'failure'
+          DISCORD_WEBHOOK_URL: 'https://discord.com/api/webhooks/1260485073355018310/9Lxx9hD2n7rM4SQShQzho5KdAKAuyKwKr5kHASdQgCJJvm-uu06nAE0NE0gBoEO1kUTR'
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    needs: build-and-push
+    steps:
+      - name: Setup SSH for GitHub
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GITHUBSSH_KEY }}" > ~/.ssh/github_deploy_key
+          chmod 600 ~/.ssh/github_deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+      - name: Setup SSH for Server
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+      - name: Deploy application via SSH
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/github_deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} <<'EOF'
+            set -e  # Exit on error
+
+            if [ ! -d /root/workspace/prerender ]; then
+              git clone -b main git@github.com:${{ github.repository }} /root/workspace/prerender
+            else
+              cd /root/workspace/prerender
+              git fetch origin
+              git reset --hard origin/main
+            fi
+            cd /root/workspace/prerender
+
+            # Merge GitHub secrets into .env
+            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
+
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+            docker compose --env-file .env pull
+            docker compose --env-file .env up -d
+          EOF
+      - name: Notify if success
+        uses: up9cloud/action-notify@master
+        if: ${{ success() }}
+        env:
+          GITHUB_JOB_STATUS: 'success'
+          DISCORD_WEBHOOK_URL: 'https://discord.com/api/webhooks/1260485073355018310/9Lxx9hD2n7rM4SQShQzho5KdAKAuyKwKr5kHASdQgCJJvm-uu06nAE0NE0gBoEO1kUTR'
+      - name: Notify if failure
+        uses: up9cloud/action-notify@master
+        if: ${{ failure() }}
+        env:
+          GITHUB_JOB_STATUS: 'failure'
+          DISCORD_WEBHOOK_URL: 'https://discord.com/api/webhooks/1260485073355018310/9Lxx9hD2n7rM4SQShQzho5KdAKAuyKwKr5kHASdQgCJJvm-uu06nAE0NE0gBoEO1kUTR'
