@@ -86,14 +86,14 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/github_deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} <<'EOF'
             set -e  # Exit on error
 
-            if [ ! -d /root/workspace/prerender ]; then
-              git clone -b main git@github.com:${{ github.repository }} /root/workspace/prerender
+            if [ ! -d /root/workspace/seo-bot ]; then
+              git clone -b main git@github.com:${{ github.repository }} /root/workspace/seo-bot
             else
-              cd /root/workspace/prerender
+              cd /root/workspace/seo-bot
               git fetch origin
               git reset --hard origin/main
             fi
-            cd /root/workspace/prerender
+            cd /root/workspace/seo-bot
 
             # Merge GitHub secrets into .env
             echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
