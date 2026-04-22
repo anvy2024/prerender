@@ -27,10 +27,10 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
         const productSlug = segments[segments.length - 1];
         const newRelativePath = `/product/${productSlug}${parsed.search}`;
         const newFullUrl = `${fastify.config.SITE_URL}${newRelativePath}`;
-
+        const newFommatPath = `/product/${productSlug}`;
         fastify.log.info(`Bot redirect: ${fullUrl} -> ${newFullUrl}`);
         fastify.analytics.record({
-          url: fullUrl, path: parsed.pathname, botName, userAgent,
+          url: fullUrl, path: newFommatPath, botName, userAgent,
           cacheStatus: 'redirect-pattern', httpStatus: 301, renderDurationMs: null,
         });
 
