@@ -18,6 +18,26 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     );
     const relativePath = (parsed.pathname + parsed.search) || '/';
     const fullUrl = `${fastify.config.SITE_URL}${relativePath}`;
+
+    // redirect format product detail URL cũ sang format moi cho goole bots 
+    // vd: /product/parent-category/child-category/product-alias -> /product/product-alias
+    if (botName && parsed.pathname.startsWith('/product/')) {
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      if (segments.length > 2) {
+        const productSlug = segments[segments.length - 1];
+        const newRelativePath = `/product/${productSlug}${parsed.search}`;
+        const newFullUrl = `${fastify.config.SITE_URL}${newRelativePath}`;
+
+        fastify.log.info(`Bot redirect: ${fullUrl} -> ${newFullUrl}`);
+        fastify.analytics.record({
+          url: fullUrl, path: parsed.pathname, botName, userAgent,
+          cacheStatus: 'redirect-pattern', httpStatus: 301, renderDurationMs: null,
+        });
+
+        return reply.status(301).redirect(newFullUrl);
+      }
+    }
+
     const filePath = path.join(fastify.config.STATIC_SITE_DIR, `${md5(fullUrl)}.html`)
 
     // Check if URL is marked as gone → return 410 immediately

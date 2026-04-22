@@ -7,7 +7,7 @@ export interface AnalyticsEvent {
   path: string
   botName: string
   userAgent: string
-  cacheStatus: 'hit' | 'miss' | 'expired' | 'gone' | 'redirect'
+  cacheStatus: 'hit' | 'miss' | 'expired' | 'gone' | 'redirect' | 'redirect-pattern'
   httpStatus: number
   renderDurationMs: number | null
 }
