@@ -19,18 +19,21 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     const relativePath = (parsed.pathname + parsed.search) || '/';
     const fullUrl = `${fastify.config.SITE_URL}${relativePath}`;
 
-    // redirect format product detail URL cũ sang format moi cho goole bots 
+    // redirect format product detail URL cũ sang format moi cho ca nguoi dung va bots 
     // vd: /product/parent-category/child-category/product-alias -> /product/product-alias
-    if (botName && parsed.pathname.startsWith('/product/')) {
+    if (parsed.pathname.startsWith('/product/')) {
       const segments = parsed.pathname.split('/').filter(Boolean);
       if (segments.length > 2) {
         const productSlug = segments[segments.length - 1];
         const newRelativePath = `/product/${productSlug}${parsed.search}`;
         const newFullUrl = `${fastify.config.SITE_URL}${newRelativePath}`;
-        const newFommatPath = `/product/${productSlug}`;
-        fastify.log.info(`Bot redirect: ${fullUrl} -> ${newFullUrl}`);
+        const newFormatPath = `/product/${productSlug}`;
+        
+        fastify.log.info(`Redirecting to short URL: ${fullUrl} -> ${newFullUrl}`);
+        
+        // Luôn ghi nhận analytics khi redirect pattern này (dung botName || '' de tranh loi TS)
         fastify.analytics.record({
-          url: fullUrl, path: newFommatPath, botName, userAgent,
+          url: fullUrl, path: newFormatPath, botName: botName || '', userAgent,
           cacheStatus: 'redirect-pattern', httpStatus: 301, renderDurationMs: null,
         });
 
