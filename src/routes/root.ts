@@ -16,28 +16,32 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     const parsed = new URL(
       rawUrl.startsWith('/http') ? rawUrl.slice(1) : `${fastify.config.SITE_URL}${rawUrl}`
     );
-    const relativePath = (parsed.pathname + parsed.search) || '/';
+
+    // Normalize pathname: remove double slashes and ensure it starts with /
+    const normalizedPathname = parsed.pathname.replace(/\/+/g, '/');
+
+    const relativePath = (normalizedPathname + parsed.search) || '/';
     const fullUrl = `${fastify.config.SITE_URL}${relativePath}`;
 
     // redirect format product detail URL cũ sang format moi cho ca nguoi dung va bots 
     // vd: /product/parent-category/child-category/product-alias -> /product/product-alias
-    if (parsed.pathname.startsWith('/product/')) {
-      const segments = parsed.pathname.split('/').filter(Boolean);
+    if (normalizedPathname.toLowerCase().startsWith('/product/')) {
+      const segments = normalizedPathname.split('/').filter(Boolean);
       if (segments.length > 2) {
         const productSlug = segments[segments.length - 1];
         const newRelativePath = `/product/${productSlug}${parsed.search}`;
-        const newFullUrl = `${fastify.config.SITE_URL}${newRelativePath}`;
         const newFormatPath = `/product/${productSlug}`;
         
-        fastify.log.info(`Redirecting to short URL: ${fullUrl} -> ${newFullUrl}`);
+        fastify.log.info(`Redirecting to short URL: ${fullUrl} -> ${newRelativePath} (segments: ${segments.length})`);
         
-        // Luôn ghi nhận analytics khi redirect pattern này (dung botName || '' de tranh loi TS)
+        // Luôn ghi nhận analytics khi redirect pattern này
         fastify.analytics.record({
           url: fullUrl, path: newFormatPath, botName: botName || '', userAgent,
           cacheStatus: 'redirect-pattern', httpStatus: 301, renderDurationMs: null,
         });
 
-        return reply.status(301).redirect(newFullUrl);
+        // Sử dụng đường dẫn tương đối và đảm bảo không bị double-encode dấu ?
+        return reply.status(301).header('Location', newRelativePath).send();
       }
     }
 
