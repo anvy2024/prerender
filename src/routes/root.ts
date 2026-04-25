@@ -28,16 +28,16 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     if (normalizedPathname.toLowerCase().startsWith('/product/')) {
       const segments = normalizedPathname.split('/').filter(Boolean);
       if (segments.length > 2) {
-        const productSlug = segments[segments.length - 1];
+        const productSlug = decodeURIComponent(segments[segments.length - 1]);
         const newRelativePath = `/product/${productSlug}${parsed.search}`;
         const newFormatPath = `/product/${productSlug}`;
-        
+
         // Use the origin from the parsed URL to keep the same domain if it's a full URL request
         const origin = rawUrl.startsWith('/http') ? parsed.origin : fastify.config.SITE_URL;
         const newFullUrl = `${origin}${newRelativePath}`;
 
         fastify.log.info(`Redirecting to short URL (ABSOLUTE): ${fullUrl} -> ${newFullUrl}`);
-        
+
         // Luôn ghi nhận analytics khi redirect pattern này
         fastify.analytics.record({
           url: fullUrl, path: newFormatPath, botName: botName || '', userAgent,
@@ -45,11 +45,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
         });
 
         // Sử dụng reply.raw để ép không bị encode dấu ?
-        reply.raw.writeHead(301, {
-          'Location': newFullUrl,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        });
-        return reply.raw.end();
+        return reply.redirect(newFullUrl, 301);
       }
     }
 
